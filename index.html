@@ -1,444 +1,637 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HRM-RDT — Hierarchical Recurrent-Depth Architecture</title>
-  <style>
-    :root {
-      --bg: #0a0b10;
-      --surface: #12141c;
-      --surface-hover: #1a1d28;
-      --text: #e6e9f0;
-      --text-muted: #8b92a5;
-      --accent: #6c5ce7;
-      --accent-glow: #a29bfe;
-      --gold: #ffd166;
-      --border: rgba(255,255,255,0.08);
-      --font-main: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
-      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HRM-RDT — Hierarchical Recurrent-Depth Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  /* ─── Reset ──────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    html { scroll-behavior: smooth; }
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: var(--font-main);
-      line-height: 1.6;
-      overflow-x: hidden;
-    }
+  /* ─── Variables ──────────────────────────────────────────── */
+  :root {
+    --ink:    #0e0d0b;
+    --paper:  #f5f0e8;
+    --ash:    #54556b;
+    --smudge: #2a2826;
+    --pale:   #d9d2c3;
+  }
 
-    /* Background Grid */
-    body::before {
-      content: "";
-      position: fixed;
-      inset: 0;
-      background-image: 
-        linear-gradient(rgba(108,92,231,0.05) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(108,92,231,0.05) 1px, transparent 1px);
-      background-size: 40px 40px;
-      pointer-events: none;
-      z-index: -1;
-    }
+  /* ─── Base ───────────────────────────────────────────────── */
+  html { scroll-behavior: smooth; }
 
-    /* Running Words Marquee */
-    .marquee-wrap {
-      width: 100%;
-      overflow: hidden;
-      background: linear-gradient(90deg, rgba(108,92,231,0.15), rgba(255,209,102,0.1), rgba(108,92,231,0.15));
-      border-bottom: 1px solid var(--border);
-      padding: 10px 0;
-      position: relative;
-    }
-    .marquee-track {
-      display: flex;
-      width: max-content;
-      animation: scroll 25s linear infinite;
-    }
-    .marquee-track span {
-      padding: 0 2rem;
-      font-family: var(--font-mono);
-      font-size: 0.85rem;
-      letter-spacing: 0.1em;
-      color: var(--accent-glow);
-      white-space: nowrap;
-      text-transform: uppercase;
-    }
-    @keyframes scroll {
-      0% { transform: translateX(0); }
-      100% { transform: translateX(-50%); }
-    }
+  body {
+    background: var(--ink);
+    color: var(--paper);
+    font-family: 'IM Fell English', Georgia, serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+  }
 
-    /* Container */
-    .container {
-      max-width: 980px;
-      margin: 0 auto;
-      padding: 2rem 1.5rem 4rem;
-    }
+  /* ─── Ink-grain overlay ──────────────────────────────────── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E");
+    background-size: 128px 128px;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.35;
+  }
 
-    /* Hero */
-    .hero {
-      text-align: center;
-      padding: 3rem 0 2rem;
-      position: relative;
-    }
-    .hero h1 {
-      font-size: clamp(2rem, 5vw, 3.2rem);
-      font-weight: 800;
-      background: linear-gradient(135deg, var(--text), var(--accent-glow), var(--gold));
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
-      margin-bottom: 0.5rem;
-      animation: fadeDown 0.8s ease-out;
-    }
-    .hero p {
-      color: var(--text-muted);
-      font-size: 1.1rem;
-      max-width: 650px;
-      margin: 0 auto 1.5rem;
-      animation: fadeDown 0.8s ease-out 0.2s backwards;
-    }
-    .repo-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      background: linear-gradient(135deg, var(--accent), #4834d4);
-      color: #fff;
-      padding: 0.75rem 1.5rem;
-      border-radius: 8px;
-      text-decoration: none;
-      font-weight: 600;
-      box-shadow: 0 4px 20px rgba(108,92,231,0.4);
-      transition: transform 0.2s, box-shadow 0.2s;
-      animation: fadeDown 0.8s ease-out 0.4s backwards;
-    }
-    .repo-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 25px rgba(108,92,231,0.6);
-    }
+  /* ─── Bat Stage ──────────────────────────────────────────── */
+  #bat-stage {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    overflow: hidden;
+  }
 
-    /* GLITZ BAT */
-    .bat-container {
-      position: absolute;
-      top: -20px;
-      right: 5%;
-      width: 180px;
-      height: 180px;
-      pointer-events: none;
-      animation: float 6s ease-in-out infinite;
-    }
-    .bat-svg {
-      width: 100%;
-      height: 100%;
-      fill: #1a1c29;
-      filter: drop-shadow(0 0 12px rgba(162,155,254,0.6)) drop-shadow(0 0 25px rgba(255,209,102,0.4));
-      position: relative;
-    }
-    .bat-svg::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.8) 50%, transparent 70%);
-      background-size: 200% 100%;
-      mix-blend-mode: overlay;
-      animation: glitz 2.5s linear infinite;
-      border-radius: inherit;
-    }
-    @keyframes glitz {
-      0% { background-position: 200% 0; }
-      100% { background-position: -200% 0; }
-    }
-    @keyframes float {
-      0%, 100% { transform: translateY(0) rotate(0deg); }
-      50% { transform: translateY(-12px) rotate(2deg); }
-    }
+  /* ─── Bat pixel-art ──────────────────────────────────────── */
+  .bat-wrap {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+  }
 
-    /* Sections */
-    section {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 2rem;
-      margin-bottom: 2rem;
-      opacity: 0;
-      transform: translateY(20px);
-      animation: fadeUp 0.6s ease-out forwards;
-    }
-    section:nth-child(2) { animation-delay: 0.1s; }
-    section:nth-child(3) { animation-delay: 0.2s; }
-    section:nth-child(4) { animation-delay: 0.3s; }
-    section:nth-child(5) { animation-delay: 0.4s; }
-    section:nth-child(6) { animation-delay: 0.5s; }
-    section:nth-child(7) { animation-delay: 0.6s; }
+  .bat {
+    width: 1px;
+    height: 1px;
+    transform: scale(3);
+    transform-origin: top left;
+    position: relative;
+    left: -128px;
+    top:  -128px;
+    animation: 0.4s bat steps(1) infinite;
+    opacity: 0.55;
+  }
 
-    h2 {
-      font-size: 1.6rem;
-      margin-bottom: 1rem;
-      color: var(--accent-glow);
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 0.5rem;
-    }
-    h3 { color: var(--gold); margin: 1.2rem 0 0.5rem; }
-    p, li { color: var(--text-muted); margin-bottom: 0.8rem; }
-    ul { padding-left: 1.2rem; }
-    li { margin-bottom: 0.5rem; }
+  /* Float paths per bat */
+  .bat-wrap:nth-child(1) { animation: float1 28s ease-in-out infinite; top: 12%; left: 8%; }
+  .bat-wrap:nth-child(2) { animation: float2 35s ease-in-out infinite; top: 30%; left: 72%; }
+  .bat-wrap:nth-child(3) { animation: float3 22s ease-in-out infinite; top: 60%; left: 20%; }
+  .bat-wrap:nth-child(4) { animation: float4 40s ease-in-out infinite; top: 18%; left: 50%; }
+  .bat-wrap:nth-child(5) { animation: float5 30s ease-in-out infinite; top: 75%; left: 80%; }
+  .bat-wrap:nth-child(6) { animation: float6 26s ease-in-out infinite; top: 45%; left: 42%; }
+  .bat-wrap:nth-child(7) { animation: float7 33s ease-in-out infinite; top: 85%; left: 10%; }
 
-    /* Architecture Flow */
-    .flow {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: center;
-      gap: 0.5rem;
-      font-family: var(--font-mono);
-      background: rgba(0,0,0,0.3);
-      padding: 1rem;
-      border-radius: 8px;
-      margin: 1rem 0;
-      font-size: 0.9rem;
-    }
-    .flow span { color: var(--text); }
-    .flow .arrow { color: var(--accent-glow); font-weight: bold; }
-    .flow .block { background: var(--surface-hover); padding: 0.4rem 0.8rem; border-radius: 6px; border: 1px solid var(--border); }
+  @keyframes float1 {
+    0%,100% { transform: translate(0,0) scaleX(1); }
+    25%      { transform: translate(120px,-80px) scaleX(-1); }
+    50%      { transform: translate(60px,40px) scaleX(-1); }
+    75%      { transform: translate(-40px,-30px) scaleX(1); }
+  }
+  @keyframes float2 {
+    0%,100% { transform: translate(0,0) scaleX(1); }
+    30%      { transform: translate(-200px,60px) scaleX(-1); }
+    60%      { transform: translate(-80px,-50px) scaleX(1); }
+    80%      { transform: translate(-150px,30px) scaleX(-1); }
+  }
+  @keyframes float3 {
+    0%,100% { transform: translate(0,0) scaleX(1); }
+    20%      { transform: translate(180px,-100px) scaleX(-1); }
+    55%      { transform: translate(300px,20px) scaleX(1); }
+    80%      { transform: translate(100px,-60px) scaleX(-1); }
+  }
+  @keyframes float4 {
+    0%,100% { transform: translate(0,0) scaleX(-1); }
+    35%      { transform: translate(-100px,80px) scaleX(1); }
+    65%      { transform: translate(50px,-30px) scaleX(1); }
+    85%      { transform: translate(-60px,50px) scaleX(-1); }
+  }
+  @keyframes float5 {
+    0%,100% { transform: translate(0,0) scaleX(1); }
+    40%      { transform: translate(-250px,-120px) scaleX(-1); }
+    70%      { transform: translate(-100px,-200px) scaleX(1); }
+  }
+  @keyframes float6 {
+    0%,100% { transform: translate(0,0) scaleX(1); }
+    25%      { transform: translate(80px,-60px) scaleX(-1); }
+    60%      { transform: translate(-120px,40px) scaleX(-1); }
+    85%      { transform: translate(40px,-80px) scaleX(1); }
+  }
+  @keyframes float7 {
+    0%,100% { transform: translate(0,0) scaleX(1); }
+    30%      { transform: translate(350px,-80px) scaleX(-1); }
+    65%      { transform: translate(200px,-140px) scaleX(1); }
+  }
 
-    /* Cards */
-    .card-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 1rem;
-      margin-top: 1rem;
-    }
-    .card {
-      background: var(--surface-hover);
-      border: 1px solid var(--border);
-      padding: 1.2rem;
-      border-radius: 10px;
-      transition: transform 0.2s, border-color 0.2s;
-    }
-    .card:hover { transform: translateY(-3px); border-color: var(--accent); }
-    .card h4 { color: var(--text); margin-bottom: 0.5rem; }
+  /* ─── Bat Keyframes (from uploaded style.css) ────────────── */
+  @keyframes bat {
+    0% { box-shadow: 33px 6px #54556b, 34px 6px #54556b, 35px 6px #54556b, 36px 6px #54556b, 20px 7px #54556b, 21px 7px #54556b, 22px 7px #54556b, 23px 7px #54556b, 33px 7px #54556b, 34px 7px #54556b, 35px 7px #202020, 36px 7px #202020, 37px 7px #54556b, 38px 7px #54556b, 39px 7px #54556b, 43px 7px #54556b, 20px 8px #54556b, 21px 8px #54556b, 22px 8px #54556b, 23px 8px #54556b, 33px 8px #54556b, 34px 8px #54556b, 35px 8px #202020, 36px 8px #202020, 37px 8px #54556b, 38px 8px #54556b, 39px 8px #54556b, 43px 8px #54556b, 17px 9px #54556b, 18px 9px #54556b, 19px 9px #54556b, 20px 9px #54556b, 35px 9px #54556b, 36px 9px #202020, 37px 9px #202020, 38px 9px #202020, 39px 9px #202020, 40px 9px #54556b, 41px 9px #54556b, 42px 9px #54556b, 43px 9px #202020, 44px 9px #54556b, 45px 9px #54556b, 16px 10px #54556b, 17px 10px #202020, 18px 10px #202020, 19px 10px #202020, 20px 10px #54556b, 36px 10px #54556b, 37px 10px #202020, 38px 10px #202020, 39px 10px #202020, 40px 10px #202020, 41px 10px #202020, 42px 10px #202020, 43px 10px #202020, 44px 10px #54556b, 45px 10px #54556b, 16px 11px #54556b, 17px 11px #202020, 18px 11px #202020, 19px 11px #202020, 20px 11px #54556b, 36px 11px #54556b, 37px 11px #202020, 38px 11px #202020, 39px 11px #202020, 40px 11px #202020, 41px 11px #202020, 42px 11px #202020, 43px 11px #202020, 44px 11px #54556b, 45px 11px #54556b, 13px 12px #54556b, 14px 12px #54556b, 15px 12px #54556b, 16px 12px #202020, 17px 12px #202020, 18px 12px #54556b, 19px 12px #54556b, 20px 12px #54556b, 36px 12px #54556b, 37px 12px #54556b, 38px 12px #54556b, 39px 12px #202020, 40px 12px #202020, 41px 12px #202020, 42px 12px #202020, 43px 12px #202020, 44px 12px #54556b, 45px 12px #54556b, 12px 13px #54556b, 13px 13px #202020, 14px 13px #202020, 15px 13px #202020, 16px 13px #202020, 17px 13px #202020, 18px 13px #54556b, 19px 13px #54556b, 37px 13px #54556b, 38px 13px #54556b, 39px 13px #202020, 40px 13px #202020, 41px 13px #202020, 42px 13px #202020, 43px 13px #202020, 44px 13px #202020, 45px 13px #202020, 46px 13px #54556b, 10px 14px #54556b, 11px 14px #54556b, 12px 14px #202020, 13px 14px #202020, 14px 14px #202020, 15px 14px #202020, 16px 14px #202020, 17px 14px #54556b, 36px 14px #54556b, 37px 14px #54556b, 38px 14px #54556b, 39px 14px #202020, 40px 14px #202020, 41px 14px #202020, 42px 14px #202020, 43px 14px #202020, 44px 14px #202020, 45px 14px #202020, 46px 14px #202020, 47px 14px #54556b, 10px 15px #54556b, 11px 15px #54556b, 12px 15px #202020, 13px 15px #202020, 14px 15px #202020, 15px 15px #202020, 16px 15px #202020, 17px 15px #54556b, 36px 15px #54556b, 37px 15px #54556b, 38px 15px #54556b, 39px 15px #202020, 40px 15px #202020, 41px 15px #202020, 42px 15px #202020, 43px 15px #202020, 44px 15px #202020, 45px 15px #202020, 46px 15px #202020, 47px 15px #54556b, 10px 16px #54556b, 11px 16px #54556b, 12px 16px #202020, 13px 16px #202020, 14px 16px #202020, 15px 16px #202020, 16px 16px #202020, 17px 16px #54556b, 35px 16px #54556b, 36px 16px #54556b, 37px 16px #202020, 38px 16px #202020, 39px 16px #202020, 40px 16px #202020, 41px 16px #202020, 42px 16px #202020, 43px 16px #202020, 44px 16px #202020, 45px 16px #202020, 46px 16px #202020, 47px 16px #54556b, 9px 17px #54556b, 10px 17px #202020, 11px 17px #202020, 12px 17px #202020, 13px 17px #202020, 14px 17px #202020, 15px 17px #202020, 16px 17px #202020, 17px 17px #54556b, 37px 17px #54556b, 38px 17px #54556b, 39px 17px #202020, 40px 17px #202020, 41px 17px #202020, 42px 17px #202020, 43px 17px #202020, 44px 17px #202020, 45px 17px #202020, 46px 17px #202020, 47px 17px #202020, 48px 17px #54556b, 49px 17px #54556b, 51px 17px #54556b, 7px 18px #54556b, 8px 18px #54556b, 9px 18px #54556b, 10px 18px #202020, 11px 18px #202020, 12px 18px #202020, 13px 18px #202020, 14px 18px #202020, 15px 18px #202020, 16px 18px #202020, 17px 18px #54556b, 20px 18px #54556b, 37px 18px #54556b, 38px 18px #54556b, 39px 18px #202020, 40px 18px #202020, 41px 18px #202020, 42px 18px #202020, 43px 18px #202020, 44px 18px #202020, 45px 18px #202020, 46px 18px #202020, 47px 18px #202020, 48px 18px #54556b, 49px 18px #54556b, 51px 18px #202020, 9px 21px #54556b, 10px 21px #202020, 11px 21px #202020, 12px 21px #202020, 13px 21px #202020, 14px 21px #202020, 15px 21px #202020, 16px 21px #202020, 17px 21px #202020, 18px 21px #202020, 19px 21px #202020, 20px 21px #202020, 21px 21px #54556b, 35px 21px #54556b, 36px 21px #54556b, 37px 21px #202020, 38px 21px #202020, 39px 21px #202020, 40px 21px #202020, 41px 21px #202020, 42px 21px #202020, 43px 21px #202020, 44px 21px #202020, 45px 21px #202020, 46px 21px #202020, 47px 21px #202020, 48px 21px #54556b, 49px 21px #54556b, 9px 22px #54556b, 10px 22px #202020, 11px 22px #202020, 12px 22px #202020, 13px 22px #202020, 14px 22px #202020, 15px 22px #202020, 16px 22px #202020, 17px 22px #202020, 18px 22px #202020, 19px 22px #202020, 20px 22px #54556b, 32px 22px #54556b, 33px 22px #54556b, 34px 22px #54556b, 35px 22px #202020, 36px 22px #202020, 37px 22px #202020, 38px 22px #202020, 39px 22px #202020, 40px 22px #202020, 41px 22px #202020, 42px 22px #202020, 43px 22px #202020, 44px 22px #202020, 45px 22px #202020, 46px 22px #202020, 47px 22px #54556b, 48px 22px #54556b, 49px 22px #54556b, 50px 22px #54556b, 13px 33px #54556b, 14px 33px #202020, 15px 33px #202020, 16px 33px #202020, 17px 33px #202020, 18px 33px #202020, 19px 33px #202020, 20px 33px #202020, 21px 33px #202020, 22px 33px #202020, 23px 33px #202020, 24px 33px #202020, 25px 33px #202020, 26px 33px #202020, 27px 33px #202020, 28px 33px #202020, 29px 33px #202020, 30px 33px #202020, 31px 33px #202020, 32px 33px #202020, 33px 33px #202020, 34px 33px #202020, 35px 33px #202020, 36px 33px #202020, 37px 33px #202020, 38px 33px #202020, 39px 33px #202020, 40px 33px #202020, 41px 33px #202020, 42px 33px #202020, 43px 33px #54556b, 44px 33px #54556b, 45px 33px #54556b, 22px 44px #54556b, 23px 44px #54556b, 24px 44px #54556b, 25px 44px #54556b, 26px 44px #54556b, 27px 44px #54556b, 28px 44px #54556b, 29px 44px #54556b, 30px 44px #54556b, 31px 44px #54556b, 32px 44px #54556b; }
+    14.3% { box-shadow: 17px 7px #54556b, 37px 7px #54556b, 38px 7px #54556b, 17px 8px #54556b, 37px 8px #54556b, 38px 8px #54556b, 16px 9px #54556b, 17px 9px #202020, 18px 9px #54556b, 19px 9px #54556b, 36px 9px #54556b, 37px 9px #202020, 38px 9px #202020, 39px 9px #54556b, 14px 10px #54556b, 15px 10px #54556b, 16px 10px #202020, 17px 10px #54556b, 37px 10px #54556b, 38px 10px #54556b, 39px 10px #202020, 40px 10px #54556b, 9px 14px #54556b, 10px 14px #202020, 11px 14px #202020, 12px 14px #202020, 13px 14px #202020, 14px 14px #202020, 15px 14px #202020, 16px 14px #54556b, 39px 14px #54556b, 40px 14px #202020, 41px 14px #202020, 42px 14px #202020, 43px 14px #202020, 44px 14px #54556b, 45px 14px #54556b, 9px 33px #54556b, 10px 33px #202020, 11px 33px #202020, 12px 33px #202020, 13px 33px #202020, 14px 33px #202020, 15px 33px #202020, 16px 33px #202020, 17px 33px #202020, 18px 33px #202020, 19px 33px #202020, 20px 33px #202020, 21px 33px #202020, 22px 33px #202020, 23px 33px #202020, 24px 33px #202020, 25px 33px #202020, 26px 33px #202020, 27px 33px #202020, 28px 33px #202020, 29px 33px #202020, 30px 33px #202020, 31px 33px #202020, 32px 33px #202020, 33px 33px #202020, 34px 33px #202020, 35px 33px #202020, 36px 33px #202020, 37px 33px #202020, 38px 33px #202020, 39px 33px #202020, 40px 33px #202020, 41px 33px #202020, 42px 33px #202020, 43px 33px #202020, 44px 33px #202020, 45px 33px #202020, 46px 33px #202020, 47px 33px #54556b, 22px 43px #54556b, 23px 43px #54556b, 24px 43px #54556b, 25px 43px #54556b, 26px 43px #54556b, 27px 43px #54556b, 28px 43px #54556b, 29px 43px #54556b, 30px 43px #54556b, 31px 43px #54556b, 32px 43px #54556b; }
+    28.6% { box-shadow: 16px 12px #202020, 17px 12px #202020, 16px 13px #202020, 17px 13px #202020, 16px 14px #202020, 17px 14px #202020, 43px 14px #202020, 44px 14px #202020, 45px 14px #202020, 10px 21px #202020, 11px 21px #202020, 12px 21px #202020, 41px 21px #202020, 42px 21px #202020, 9px 22px #202020, 10px 22px #202020, 11px 22px #202020, 41px 22px #202020, 42px 22px #202020, 43px 22px #202020, 5px 33px #202020, 7px 33px #202020, 8px 33px #202020, 9px 33px #202020, 10px 33px #202020, 11px 33px #202020, 14px 33px #202020, 15px 33px #202020, 18px 33px #202020, 19px 33px #202020, 20px 33px #202020, 21px 33px #202020, 24px 33px #202020, 25px 33px #202020, 26px 33px #202020, 27px 33px #202020, 28px 33px #202020, 31px 33px #202020, 32px 33px #202020, 35px 33px #202020, 36px 33px #202020, 39px 33px #202020, 40px 33px #202020, 41px 33px #202020, 42px 33px #202020, 43px 33px #202020, 44px 33px #202020, 45px 33px #202020, 46px 33px #202020, 47px 33px #202020, 6px 43px #202020, 7px 43px #202020, 8px 43px #202020, 9px 43px #202020, 10px 43px #202020, 11px 43px #202020, 12px 43px #202020, 16px 43px #202020, 17px 43px #202020, 21px 43px #202020, 22px 43px #202020, 23px 43px #202020, 31px 43px #202020, 37px 43px #202020, 38px 43px #202020, 39px 43px #202020, 40px 43px #202020, 41px 43px #202020, 42px 43px #202020, 43px 43px #202020, 44px 43px #202020, 45px 43px #202020, 46px 43px #202020, 47px 43px #202020; }
+    42.9% { box-shadow: 47px 14px #202020, 47px 15px #202020, 14px 16px #202020, 15px 16px #202020, 18px 21px #54556b, 19px 21px #54556b, 20px 21px #54556b, 21px 21px #54556b, 22px 21px #54556b, 23px 21px #54556b, 17px 28px #54556b, 18px 28px #202020, 19px 28px #202020, 20px 28px #fff, 21px 28px #202020, 22px 28px #202020, 23px 28px #202020, 24px 28px #202020, 25px 28px #fff, 26px 28px #fff, 27px 28px #fff, 7px 43px #54556b, 8px 43px #54556b, 14px 43px #54556b, 15px 43px #54556b, 16px 43px #202020, 17px 43px #202020, 18px 43px #202020, 19px 43px #202020, 20px 43px #202020, 21px 43px #202020, 22px 43px #54556b, 23px 43px #54556b, 24px 43px #54556b, 29px 43px #54556b, 30px 43px #54556b, 31px 43px #202020, 32px 43px #202020, 33px 43px #202020, 34px 43px #202020, 35px 43px #202020, 36px 43px #202020, 37px 43px #202020, 38px 43px #202020, 39px 43px #202020, 40px 43px #202020, 41px 43px #202020, 42px 43px #202020, 43px 43px #202020, 44px 43px #54556b, 45px 43px #54556b, 46px 43px #54556b; }
+    57.2% { box-shadow: 31px 16px #54556b, 32px 16px #54556b, 31px 17px #54556b, 32px 17px #54556b, 17px 28px #54556b, 18px 28px #202020, 19px 28px #202020, 20px 28px #fff, 21px 28px #202020, 22px 28px #202020, 23px 28px #202020, 24px 28px #202020, 25px 28px #fff, 26px 28px #fff, 27px 28px #fff, 14px 37px #54556b, 15px 37px #54556b, 16px 37px #54556b, 17px 37px #202020, 18px 37px #202020, 19px 37px #202020, 20px 37px #202020, 21px 37px #54556b, 22px 37px #54556b, 23px 37px #54556b, 27px 37px #54556b, 28px 37px #202020, 29px 37px #202020, 30px 37px #202020, 31px 37px #202020, 32px 37px #54556b, 33px 37px #54556b, 34px 37px #54556b, 35px 37px #202020, 36px 37px #202020, 37px 37px #202020, 38px 37px #202020, 39px 37px #202020, 40px 37px #202020, 41px 37px #202020, 42px 37px #202020, 43px 37px #202020, 44px 37px #54556b, 45px 37px #54556b; }
+    71.5% { box-shadow: 32px 15px #54556b, 33px 15px #54556b, 34px 15px #54556b, 32px 16px #54556b, 33px 16px #54556b, 34px 16px #54556b, 16px 28px #54556b, 17px 28px #202020, 18px 28px #202020, 19px 28px #202020, 20px 28px #fff, 21px 28px #202020, 22px 28px #202020, 23px 28px #202020, 24px 28px #202020, 25px 28px #fff, 26px 28px #fff, 27px 28px #fff, 20px 56px #54556b, 21px 56px #54556b, 37px 56px #54556b, 38px 56px #54556b, 39px 56px #202020, 40px 56px #202020, 41px 56px #54556b, 42px 56px #54556b; }
+    85.8% { box-shadow: 17px 14px #202020, 18px 14px #202020, 19px 14px #202020, 35px 14px #54556b, 17px 15px #202020, 18px 15px #202020, 19px 15px #202020, 35px 15px #54556b, 9px 36px #54556b, 10px 36px #54556b, 11px 36px #54556b, 12px 36px #54556b, 16px 36px #54556b, 17px 36px #202020, 18px 36px #202020, 19px 36px #202020, 20px 36px #fff, 21px 36px #202020, 22px 36px #202020, 23px 36px #202020, 24px 36px #202020, 25px 36px #fff, 26px 36px #fff, 27px 36px #fff; }
+    100% { box-shadow: 31px 4px #54556b, 32px 4px #54556b, 33px 4px #54556b, 34px 4px #54556b, 35px 4px #54556b, 9px 36px #54556b, 10px 36px #54556b, 11px 36px #54556b, 12px 36px #54556b, 16px 36px #54556b, 17px 36px #202020, 18px 36px #202020, 19px 36px #202020, 20px 36px #fff, 21px 36px #202020, 22px 36px #202020, 23px 36px #202020, 24px 36px #202020, 25px 36px #fff, 26px 36px #fff, 27px 36px #fff, 22px 43px #54556b, 23px 43px #54556b, 24px 43px #54556b, 25px 43px #54556b, 26px 43px #54556b, 27px 43px #54556b, 28px 43px #54556b, 29px 43px #54556b, 30px 43px #54556b, 31px 43px #54556b, 32px 43px #54556b; }
+  }
 
-    /* Table */
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 1rem;
-      font-size: 0.95rem;
-    }
-    th, td {
-      padding: 0.75rem;
-      border: 1px solid var(--border);
-      text-align: left;
-    }
-    th { background: rgba(108,92,231,0.15); color: var(--text); }
-    td { color: var(--text-muted); }
-    tr:hover td { background: rgba(255,255,255,0.03); }
+  /* ─── Layout ─────────────────────────────────────────────── */
+  main {
+    position: relative;
+    z-index: 2;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 6rem 3rem 8rem;
+  }
 
-    /* Code/Inline */
-    code {
-      background: rgba(108,92,231,0.15);
-      padding: 0.2rem 0.4rem;
-      border-radius: 4px;
-      font-family: var(--font-mono);
-      font-size: 0.9em;
-      color: var(--accent-glow);
-    }
+  /* ─── Hero ───────────────────────────────────────────────── */
+  .hero {
+    text-align: center;
+    margin-bottom: 5rem;
+    animation: fadeUp 1.4s ease both;
+  }
 
-    /* Footer */
-    .footer {
-      text-align: center;
-      padding: 2rem 0;
-      color: var(--text-muted);
-      font-size: 0.85rem;
-      border-top: 1px solid var(--border);
-      margin-top: 2rem;
-    }
-    .footer a { color: var(--accent-glow); text-decoration: none; }
-    .footer a:hover { text-decoration: underline; }
+  .eyebrow {
+    font-family: 'Courier Prime', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--ash);
+    margin-bottom: 1.4rem;
+  }
 
-    /* Keyframes */
-    @keyframes fadeDown {
-      from { opacity: 0; transform: translateY(-15px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes fadeUp {
-      to { opacity: 1; transform: translateY(0); }
-    }
+  h1 {
+    font-family: 'IM Fell English', Georgia, serif;
+    font-size: clamp(3rem, 8vw, 5.5rem);
+    line-height: 1.0;
+    color: var(--paper);
+    text-shadow: 0 0 60px rgba(245,240,232,0.08);
+    margin-bottom: 0.4rem;
+  }
 
-    /* Responsive */
-    @media (max-width: 600px) {
-      .bat-container { width: 120px; height: 120px; right: 2%; top: 10px; }
-      .flow { font-size: 0.8rem; }
-      section { padding: 1.5rem; }
-    }
-  </style>
+  h1 em {
+    font-style: italic;
+    color: var(--pale);
+    display: block;
+    font-size: 0.6em;
+    margin-top: 0.2em;
+    letter-spacing: 0.04em;
+  }
+
+  .tagline {
+    font-family: 'IM Fell English', serif;
+    font-style: italic;
+    font-size: 1.1rem;
+    color: var(--ash);
+    margin-top: 2rem;
+    line-height: 1.6;
+  }
+
+  /* ─── Divider ────────────────────────────────────────────── */
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin: 3.5rem 0;
+    opacity: 0.4;
+  }
+  .divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--pale);
+  }
+  .divider span {
+    font-family: 'Courier Prime', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    color: var(--pale);
+    white-space: nowrap;
+  }
+
+  /* ─── Flow diagram ───────────────────────────────────────── */
+  .flow-box {
+    background: rgba(245,240,232,0.03);
+    border: 1px solid rgba(245,240,232,0.1);
+    border-radius: 2px;
+    padding: 1.8rem 2rem;
+    margin: 2.5rem 0;
+    text-align: center;
+    font-family: 'Courier Prime', monospace;
+    font-size: 0.85rem;
+    color: var(--pale);
+    line-height: 2;
+    letter-spacing: 0.04em;
+    animation: fadeUp 1.4s 0.3s ease both;
+  }
+
+  .flow-box .flow-main {
+    font-size: 0.95rem;
+    color: var(--paper);
+    display: block;
+    margin: 0.4rem 0;
+  }
+
+  /* ─── Sections ───────────────────────────────────────────── */
+  section {
+    margin: 4rem 0;
+    animation: fadeUp 1.4s ease both;
+  }
+  section:nth-child(2)  { animation-delay: 0.1s; }
+  section:nth-child(3)  { animation-delay: 0.2s; }
+  section:nth-child(4)  { animation-delay: 0.3s; }
+  section:nth-child(5)  { animation-delay: 0.4s; }
+
+  h2 {
+    font-family: 'IM Fell English', serif;
+    font-size: 1.8rem;
+    color: var(--paper);
+    margin-bottom: 1.2rem;
+    border-bottom: 1px solid rgba(245,240,232,0.12);
+    padding-bottom: 0.5rem;
+  }
+
+  h3 {
+    font-family: 'IM Fell English', serif;
+    font-style: italic;
+    font-size: 1.2rem;
+    color: var(--pale);
+    margin: 2rem 0 0.8rem;
+  }
+
+  p {
+    font-size: 1.02rem;
+    line-height: 1.85;
+    color: var(--pale);
+    margin-bottom: 1.1rem;
+  }
+
+  /* ─── Inline code / labels ───────────────────────────────── */
+  code {
+    font-family: 'Courier Prime', monospace;
+    font-size: 0.83em;
+    color: var(--paper);
+    background: rgba(245,240,232,0.07);
+    border: 1px solid rgba(245,240,232,0.12);
+    padding: 0.1em 0.35em;
+    border-radius: 2px;
+  }
+
+  /* ─── Table ──────────────────────────────────────────────── */
+  .table-wrap {
+    overflow-x: auto;
+    margin: 1.5rem 0;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'Courier Prime', monospace;
+    font-size: 0.82rem;
+  }
+
+  th {
+    text-align: left;
+    color: var(--paper);
+    border-bottom: 1px solid rgba(245,240,232,0.2);
+    padding: 0.6rem 1rem;
+    letter-spacing: 0.08em;
+  }
+
+  td {
+    color: var(--pale);
+    border-bottom: 1px solid rgba(245,240,232,0.06);
+    padding: 0.6rem 1rem;
+    vertical-align: top;
+  }
+
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(245,240,232,0.03); }
+
+  /* ─── Module Cards ───────────────────────────────────────── */
+  .modules {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.2rem;
+    margin: 1.5rem 0;
+  }
+
+  @media (max-width: 600px) { .modules { grid-template-columns: 1fr; } }
+
+  .module-card {
+    border: 1px solid rgba(245,240,232,0.1);
+    padding: 1.4rem 1.6rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .module-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px; height: 100%;
+    background: var(--ash);
+  }
+
+  .module-card .label {
+    font-family: 'Courier Prime', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--ash);
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+
+  .module-card .name {
+    font-family: 'IM Fell English', serif;
+    font-size: 1.1rem;
+    color: var(--paper);
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+
+  .module-card p {
+    font-size: 0.88rem;
+    margin-bottom: 0;
+    line-height: 1.6;
+  }
+
+  /* ─── Status checklist ───────────────────────────────────── */
+  .checklist {
+    list-style: none;
+    margin: 1rem 0;
+  }
+
+  .checklist li {
+    font-family: 'Courier Prime', monospace;
+    font-size: 0.85rem;
+    color: var(--pale);
+    padding: 0.35rem 0;
+    border-bottom: 1px solid rgba(245,240,232,0.05);
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+  }
+
+  .checklist li:last-child { border-bottom: none; }
+
+  .check-icon {
+    width: 14px;
+    height: 14px;
+    border: 1px solid var(--ash);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6rem;
+  }
+
+  .check-icon.done {
+    background: var(--ash);
+    color: var(--ink);
+    border-color: var(--ash);
+  }
+
+  /* ─── References ─────────────────────────────────────────── */
+  .refs {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    margin: 1rem 0;
+  }
+
+  .ref-link {
+    font-family: 'Courier Prime', monospace;
+    font-size: 0.8rem;
+    color: var(--ash);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.4rem 0;
+    border-bottom: 1px solid rgba(245,240,232,0.05);
+    transition: color 0.2s;
+  }
+
+  .ref-link:hover { color: var(--paper); }
+
+  .ref-link::before {
+    content: '→';
+    font-size: 0.7rem;
+    opacity: 0.6;
+  }
+
+  /* ─── Footer ─────────────────────────────────────────────── */
+  footer {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    padding: 3rem 2rem;
+    font-family: 'Courier Prime', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.15em;
+    color: rgba(245,240,232,0.2);
+    border-top: 1px solid rgba(245,240,232,0.06);
+  }
+
+  /* ─── Animations ─────────────────────────────────────────── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ─── Responsive ─────────────────────────────────────────── */
+  @media (max-width: 640px) {
+    main { padding: 4rem 1.5rem 6rem; }
+    h1 { font-size: 2.6rem; }
+  }
+</style>
 </head>
 <body>
 
-  <!-- Running Words Banner -->
-  <div class="marquee-wrap">
-    <div class="marquee-track">
-      <span>✦ Hierarchical Convergence ✦ Recurrent Depth ✦ LTI Stability ✦ Spectral Radius &lt; 1 ✦ Fast L ✦ Slow H ✦ OpenMythos Fusion ✦ Cross-Attention Coupling ✦ Adaptive Compute ✦</span>
-      <span>✦ Hierarchical Convergence ✦ Recurrent Depth ✦ LTI Stability ✦ Spectral Radius &lt; 1 ✦ Fast L ✦ Slow H ✦ OpenMythos Fusion ✦ Cross-Attention Coupling ✦ Adaptive Compute ✦</span>
-    </div>
+<!-- ─── Bat Stage ──────────────────────────────────────────── -->
+<div id="bat-stage">
+  <div class="bat-wrap"><div class="bat"></div></div>
+  <div class="bat-wrap"><div class="bat"></div></div>
+  <div class="bat-wrap"><div class="bat"></div></div>
+  <div class="bat-wrap"><div class="bat"></div></div>
+  <div class="bat-wrap"><div class="bat"></div></div>
+  <div class="bat-wrap"><div class="bat"></div></div>
+  <div class="bat-wrap"><div class="bat"></div></div>
+</div>
+
+<!-- ─── Main Content ──────────────────────────────────────── -->
+<main>
+
+  <!-- Hero -->
+  <div class="hero">
+    <p class="eyebrow">Research Architecture · 2025</p>
+    <h1>
+      HRM-RDT
+      <em>Hierarchical Recurrent-Depth Transformer</em>
+    </h1>
+    <p class="tagline">
+      A fusion of <em>OpenMythos</em> recurrent depth and <em>HRM</em> hierarchical convergence —<br>
+      slow abstraction and fast computation, looped inside a stable scaffold.
+    </p>
   </div>
 
-  <div class="container">
-    <!-- Hero -->
-    <header class="hero">
-      <div class="bat-container">
-        <svg class="bat-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-          <path d="M50 20 C45 10, 30 5, 20 15 C10 25, 5 40, 15 50 C5 60, 10 75, 25 70 C35 65, 45 55, 50 50 C55 55, 65 65, 75 70 C90 75, 95 60, 85 50 C95 40, 90 25, 80 15 C70 5, 55 10, 50 20 Z M50 30 C48 28, 40 25, 35 30 C30 35, 35 45, 40 40 C45 35, 48 32, 50 30 Z M50 30 C52 28, 60 25, 65 30 C70 35, 65 45, 60 40 C55 35, 52 32, 50 30 Z M45 45 C42 50, 40 60, 45 65 C48 60, 48 50, 45 45 Z M55 45 C58 50, 60 60, 55 65 C52 60, 52 50, 55 45 Z"/>
-        </svg>
+  <!-- Flow Diagram -->
+  <div class="flow-box">
+    <code>Input</code>  →  <code>Prelude</code>  →
+    <span class="flow-main">[ Recurrent Block: H ↔ L (×K loops) ]</span>
+    →  <code>Coda</code>  →  <code>Output</code>
+  </div>
+
+  <!-- How HRM Works -->
+  <section>
+    <h2>How HRM Works</h2>
+    <p>
+      HRM has four learnable components: an input network that encodes tokens into vectors,
+      a low-level <code>L</code> module for fast detailed computation, a high-level <code>H</code> module
+      for abstract reasoning, and an output network that converts the final <code>H</code> hidden state
+      to output predictions.
+    </p>
+    <p>
+      The critical insight is the timing: the <code>L</code> module advances only after completing multiple
+      computational steps and reaching a local equilibrium — at which point it is reset to begin a new
+      phase guided by the <code>H</code> module's updated state. This is called <em>hierarchical
+      convergence</em>: L runs fast and hard until it settles, then H takes one slow step, then L resets
+      and runs again.
+    </p>
+    <p>
+      The <code>L</code> module functions like a standard RNN, but its hidden state updates are conditioned
+      not just on its own previous state, but also on the <code>H</code> module's current hidden state —
+      which changes much more slowly.
+    </p>
+
+    <div class="modules">
+      <div class="module-card">
+        <span class="label">Module — High-Level</span>
+        <span class="name">H Module</span>
+        <p>Slow, abstract reasoning. Takes one step per full L-convergence cycle. Its <code>zH</code> guides the next L inner cycle.</p>
       </div>
-      <h1>HRM-RDT</h1>
-      <p>Hierarchical Recurrent-Depth Transformer<br>A fusion of OpenMythos recurrent depth and HRM hierarchical convergence — slow abstraction and fast computation, looped inside a stable scaffold.</p>
-      <a class="repo-btn" href="https://github.com/ha466/unholy-hybrid.git" target="_blank" rel="noopener">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.387.6.11.82-.26.82-.577v-2.234c-3.338.725-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.73.083-.73 1.205.085 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.418-1.305.762-1.605-2.665-.305-5.466-1.332-5.466-5.93 0-1.31.468-2.38 1.235-3.22-.124-.303-.535-1.523.117-3.176 0 0 1.008-.322 3.3 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.29-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.873.118 3.176.767.84 1.233 1.91 1.233 3.22 0 4.61-2.804 5.625-5.475 5.92.43.37.814 1.1.814 2.22v3.293c0 .32.218.694.825.576C20.565 21.796 24 17.295 24 12c0-6.63-5.37-12-12-12z"/></svg>
-        View Repository: unholy-hybrid
-      </a>
-    </header>
-
-    <!-- Architecture Flow -->
-    <section>
-      <h2>🔹 Data Flow Pipeline</h2>
-      <div class="flow">
-        <span class="block">Input Tokens</span> <span class="arrow">→</span>
-        <span class="block">Embedding</span> <span class="arrow">→</span>
-        <span class="block">Prelude</span> <span class="arrow">→</span>
-        <span class="block">Recurrent Block [H ↔ L ×K]</span> <span class="arrow">→</span>
-        <span class="block">Coda</span> <span class="arrow">→</span>
-        <span class="block">RMSNorm → LM Head → Output</span>
+      <div class="module-card">
+        <span class="label">Module — Low-Level</span>
+        <span class="name">L Module</span>
+        <p>Fast, detailed computation. Loops until local equilibrium, then resets. Conditioned on H's current hidden state at each step.</p>
       </div>
-      <p>The architecture replaces standard feed-forward depth with <strong>temporal recurrence</strong>. Instead of stacking dozens of transformer layers, HRM-RDT loops a compact hierarchical pair, trading spatial depth for controlled computational time.</p>
-    </section>
+    </div>
+  </section>
 
-    <!-- How HRM Works -->
-    <section>
-      <h2>🧠 How HRM Works</h2>
-      <p>HRM introduces four learnable components that operate on distinct timescales:</p>
-      <ul>
-        <li><strong>Input Network:</strong> Encodes discrete tokens into continuous latent vectors.</li>
-        <li><strong>Low-Level <code>L</code> Module:</strong> Executes fast, granular computation. Loops until it reaches a local equilibrium, then resets.</li>
-        <li><strong>High-Level <code>H</code> Module:</strong> Performs slow, abstract reasoning. Advances only after <code>L</code> converges, issuing a new guidance state <code>zH</code>.</li>
-        <li><strong>Output Network:</strong> Projects the final <code>H</code> hidden state into token logits or task predictions.</li>
-      </ul>
-      <h3>Hierarchical Convergence</h3>
-      <p>The critical insight is <em>timescale separation</em>. <code>L</code> runs aggressively until its hidden state stabilizes (local equilibrium). At that boundary, <code>H</code> takes a single deliberate step, updates <code>zH</code>, and <code>L</code> resets to begin a new phase conditioned on the fresh abstract context. This mimics cognitive fast/slow thinking loops while keeping gradients tractable.</p>
-    </section>
+  <div class="divider"><span>✦ OPENMYTHOS ✦</span></div>
 
-    <!-- Modules -->
-    <section>
-      <h2>⚙️ Module Breakdown</h2>
-      <div class="card-grid">
-        <div class="card">
-          <h4>🔹 H Module (High-Level)</h4>
-          <p>Slow, abstract reasoning. Takes one step per full L-convergence cycle. Its latent vector <code>zH</code> acts as a dynamic prior that steers the next inner L cycle via cross-attention.</p>
-        </div>
-        <div class="card">
-          <h4>🔸 L Module (Low-Level)</h4>
-          <p>Fast, detailed computation. Loops until local equilibrium, then resets. Conditioned on H's current hidden state at every step, enabling fine-grained token manipulation without losing global context.</p>
-        </div>
-        <div class="card">
-          <h4>🔗 Coupling Mechanism</h4>
-          <p>Cross-attention bridges H and L without hard dependency. H broadcasts abstract constraints; L resolves them into concrete representations. RMSNorm between iterations prevents activation drift.</p>
-        </div>
-      </div>
-    </section>
+  <!-- How OpenMythos Works -->
+  <section>
+    <h2>How OpenMythos Works</h2>
+    <p>
+      The full data flow: Input token IDs → Embedding → <strong>Prelude</strong> (standard transformer blocks,
+      run once) → <strong>Recurrent Block</strong> (one TransformerBlock looped <code>T</code> times, with
+      update rule: <code>h_t+1 = A·h_t + B·e + Transformer(h_t, e)</code>) → <strong>Coda</strong>
+      (standard transformer blocks, run once) → RMSNorm → LM head → Output logits.
+    </p>
+    <p>
+      The key is that <code>e</code> — the Prelude's output — is re-injected at every single loop step.
+      Without this re-injection, the hidden state would drift away from the original input signal
+      across deep loops. Learned matrices <code>A</code> and <code>B</code> govern how much of the
+      previous hidden state and the encoded input carry forward at each step.
+    </p>
+    <p>
+      To prevent residual explosion, OpenMythos enforces the <em>spectral radius</em> of <code>A</code>
+      to be less than 1 by construction, guaranteeing stability regardless of learning rate or gradient noise.
+    </p>
+  </section>
 
-    <!-- OpenMythos & Fusion -->
-    <section>
-      <h2>🌌 OpenMythos × HRM Fusion</h2>
-      <h3>How OpenMythos Works</h3>
-      <p>OpenMythos introduces a recurrent transformer block with the update rule:<br>
-      <code>h_{t+1} = A·h_t + B·e + Transformer(h_t, e)</code><br>
-      The encoded input <code>e</code> (from the Prelude) is <strong>re-injected at every loop step</strong>. Without this, deep recurrence causes signal drift. Learned matrices <code>A</code> and <code>B</code> control state retention vs. input refresh. Crucially, the spectral radius of <code>A</code> is constrained to <code>&lt; 1</code>, guaranteeing bounded dynamics regardless of learning rate or gradient noise.</p>
-      
-      <h3>The Hybrid Architecture</h3>
-      <p>The fusion is conceptually clean: OpenMythos's single <code>TransformerBlock</code> inside the Recurrent Block is replaced by HRM's <code>H+L</code> pair. Instead of one block looping <code>T</code> times, you get:</p>
-      <ul>
-        <li><code>L</code> looping <code>T_L</code> times per step until convergence</li>
-        <li><code>H</code> taking one slow step</li>
-        <li>The entire structure looping <code>T_outer</code> times</li>
-        <li><code>e</code> re-injected at every inner L step for LTI stability</li>
-      </ul>
-      <p>The OpenMythos stability guarantee applies to the outer recurrence, keeping the nested hierarchy bounded across arbitrary computational depth. This yields <strong>adaptive compute</strong>: easy inputs exit early, complex reasoning triggers deeper L/H cycles.</p>
-    </section>
+  <div class="divider"><span>✦ THE FUSION ✦</span></div>
 
-    <!-- Design Choices -->
-    <section>
-      <h2>📐 Key Design Choices</h2>
+  <!-- How the Hybrid Works -->
+  <section>
+    <h2>How the Hybrid Works</h2>
+    <p>
+      The fusion is conceptually clean: OpenMythos's single <code>TransformerBlock</code> inside the
+      Recurrent Block gets replaced by HRM's <code>H+L</code> pair. Instead of one block looping
+      <code>T</code> times, you get <code>L</code> looping <code>T_L</code> times per step, then
+      <code>H</code> taking one slow step, then the whole thing looping <code>T_outer</code> times —
+      with <code>e</code> re-injected at every inner L step for LTI stability.
+    </p>
+    <p>
+      The H module's <code>zH</code> is what guides L's next inner cycle, exactly as in the original HRM.
+      The OpenMythos stability guarantee (spectral radius &lt; 1) applies to the outer recurrence,
+      keeping the entire nested structure bounded across arbitrary depth.
+    </p>
+  </section>
+
+  <div class="divider"><span>✦ DESIGN CHOICES ✦</span></div>
+
+  <!-- Key Choices -->
+  <section>
+    <h2>Key Design Choices</h2>
+    <div class="table-wrap">
       <table>
         <thead>
           <tr><th>Choice</th><th>Rationale</th></tr>
         </thead>
         <tbody>
-          <tr><td>RMSNorm between loop iterations</td><td>Training stability per HRM paper; prevents activation explosion across recurrences</td></tr>
-          <tr><td>AdamW optimizer</td><td>Decoupled weight decay keeps parameters bounded across deep recurrence</td></tr>
-          <tr><td>Cross-attention for H↔L coupling</td><td>H guides L without hard dependency; enables gradient flow isolation</td></tr>
-          <tr><td>Fixed max_loop_iters + optional early exit</td><td>Avoids infinite loops; enables adaptive depth based on input complexity</td></tr>
-          <tr><td>Small model (&lt;100M params)</td><td>Feasible to train on 1,000 samples; focuses on architectural proof-of-concept</td></tr>
-          <tr><td>e re-injected at every inner L step</td><td>LTI stability; prevents input signal drift across deep inner loops</td></tr>
-          <tr><td>Spectral radius of A &lt; 1</td><td>Guarantees outer recurrence stability by construction (contractive mapping)</td></tr>
+          <tr><td><code>RMSNorm</code> between loop iterations</td><td>Training stability per HRM paper</td></tr>
+          <tr><td><code>AdamW</code> optimizer</td><td>Keeps weights bounded across deep recurrence</td></tr>
+          <tr><td>Cross-attention for H↔L coupling</td><td>H guides L without hard dependency</td></tr>
+          <tr><td>Fixed <code>max_loop_iters</code> + optional early exit</td><td>Avoids infinite loops; enables adaptive depth</td></tr>
+          <tr><td>Small model (&lt;100M params)</td><td>Feasible to train on 1,000 samples</td></tr>
+          <tr><td><code>e</code> re-injected at every inner L step</td><td>LTI stability; prevents input signal drift</td></tr>
+          <tr><td>Spectral radius of A &lt; 1</td><td>Guarantees outer recurrence stability by construction</td></tr>
         </tbody>
       </table>
-    </section>
+    </div>
+  </section>
 
-    <!-- Dataset & Training -->
-    <section>
-      <h2>📊 Dataset & Training Dynamics</h2>
-      <div class="card-grid">
-        <div class="card">
-          <h4>Dataset Specification</h4>
-          <ul>
-            <li><strong>Size:</strong> 1,000 samples</li>
-            <li><strong>Domain:</strong> Human-based reasoning traces</li>
-            <li><strong>Format:</strong> JSON <code>{ input, output, reasoning_trace }</code></li>
-            <li><strong>Split:</strong> 800 train / 100 val / 100 test</li>
-            <li><strong>Stack:</strong> Lightning.ai · PyTorch + HuggingFace</li>
-          </ul>
-        </div>
-        <div class="card">
-          <h4>Training Behavior</h4>
-          <p>Due to the contractive outer recurrence and RMSNorm gating, gradients remain well-conditioned even with unrolled depth. Early-exit thresholds are learned dynamically, allowing the model to allocate compute proportionally to reasoning difficulty. The small parameter count forces the architecture to rely on <em>temporal reuse</em> rather than spatial width.</p>
-        </div>
-      </div>
-    </section>
+  <div class="divider"><span>✦ DATASET ✦</span></div>
 
-    <!-- References -->
-    <section>
-      <h2>📚 References & Resources</h2>
-      <ul>
-        <li><a href="https://github.com/kyegomez/OpenMythos" target="_blank">github.com/kyegomez/OpenMythos</a></li>
-        <li><a href="https://arxiv.org/abs/2506.21734" target="_blank">arxiv.org/abs/2506.21734 — HRM Paper</a></li>
-        <li><a href="https://github.com/sapientinc/HRM" target="_blank">github.com/sapientinc/HRM</a></li>
-        <li><strong>Official Implementation:</strong> <a href="https://github.com/ha466/unholy-hybrid.git" target="_blank">github.com/ha466/unholy-hybrid</a></li>
-      </ul>
-    </section>
+  <!-- Dataset + Status -->
+  <section>
+    <h2>Dataset &amp; Status</h2>
 
-    <footer class="footer">
-      HRM-RDT · HIERARCHICAL REASONING MODEL × RECURRENT-DEPTH TRANSFORMER<br>
-      Built for stable, adaptive, and interpretable deep recurrence. ✦ 2025
-    </footer>
-  </div>
+    <h3>Dataset</h3>
+    <div class="table-wrap">
+      <table>
+        <tbody>
+          <tr><td><code>Size</code></td><td>1,000 samples</td></tr>
+          <tr><td><code>Domain</code></td><td>Human-based reasoning</td></tr>
+          <tr><td><code>Format</code></td><td>JSON — <code>{ input, output, reasoning_trace }</code></td></tr>
+          <tr><td><code>Split</code></td><td>800 train / 100 val / 100 test</td></tr>
+          <tr><td><code>Compute</code></td><td>Lightning.ai · PyTorch + HuggingFace</td></tr>
+        </tbody>
+      </table>
+    </div>
 
-  <script>
-    // Simple intersection observer for scroll-triggered fade-ins
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          entry.target.style.animationPlayState = 'running';
-          observer.unobserve(entry.target);
-        }
-      });
-    }, { threshold: 0.1 });
+    <h3>Project Milestones</h3>
+    <ul class="checklist">
+      <li><span class="check-icon done">✓</span> Architecture designed</li>
+      <li><span class="check-icon"></span> Prelude + Coda implementation</li>
+      <li><span class="check-icon"></span> HRM H + L module implementation</li>
+      <li><span class="check-icon"></span> Recurrent Block integration</li>
+      <li><span class="check-icon"></span> Training loop</li>
+      <li><span class="check-icon"></span> Evaluation on 1K dataset</li>
+    </ul>
+  </section>
 
-    document.querySelectorAll('section').forEach(sec => {
-      sec.style.animationPlayState = 'paused';
-      observer.observe(sec);
-    });
-  </script>
+  <div class="divider"><span>✦ REFERENCES ✦</span></div>
+
+  <!-- References -->
+  <section>
+    <h2>References</h2>
+    <div class="refs">
+      <a class="ref-link" href="https://github.com/kyegomez/OpenMythos" target="_blank">github.com/kyegomez/OpenMythos</a>
+      <a class="ref-link" href="https://arxiv.org/abs/2506.21734" target="_blank">arxiv.org/abs/2506.21734 — HRM Paper</a>
+      <a class="ref-link" href="https://github.com/sapientinc/HRM" target="_blank">github.com/sapientinc/HRM</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  HRM-RDT · HIERARCHICAL REASONING MODEL × RECURRENT-DEPTH TRANSFORMER
+</footer>
+
 </body>
 </html>
